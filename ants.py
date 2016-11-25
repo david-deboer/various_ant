@@ -8,7 +8,7 @@ from matplotlib import colors as mcolors
 colors = mcolors.cnames.keys()
 
 class Ants:
-    def __init__(self,D=14.0,fD=0.32,feed_type='gaussian',feed_fbw=None,dB_at_bw=None):
+    def __init__(self,D=14.0,fD=0.32,feed_type='gaussian:150,10,0.5',feed_fbw=None,dB_at_bw=None):
         """
         paraboloidal antenna (primary optics) antenna parameters
         This just gets the input information and calls the various modules in antPerf.
@@ -17,7 +17,12 @@ class Ants:
         self.fD = fD
         self.f = fD*D
         if feed_fbw is None and dB_at_bw is None:
-            dB_at_bw = 10.
+            if ':' in feed_type:
+                feed_type_tmp, self.feed_design_freq, dB_at_bw, feed_freq_exp = ap.parseFeedtype(feed_type)
+            else:
+                self.feed_design_freq = 1.0
+                dB_at_bw = 10.
+                self.feed_freq_exp = 0.0
             feed_fbw = ap.fD2angle(fD)
         self.feed_fbw = feed_fbw
         self.dB_at_bw = dB_at_bw
@@ -25,7 +30,8 @@ class Ants:
         self.set_optics(D,None,fD,feed_fbw,dB_at_bw,feed_type,False)
         self.set_defects()
 
-    def ant_par(self,freq=None,plotgp='GainPattern',plot_label_prefix='',plot_color='k'):
+    def ant_par(self,freq,plotgp='GainPattern',plot_label_prefix='',plot_color='k'):
+        self.freq = freq
         self.feedtaper = ap.feedTaper(freq, self.fD, self.feed_fbw, self.dB_at_bw, self.feed_type)
         self.taper = self.feedtaper + self.freetaper
         self.theta0 = ap.fD2angle(self.fD,units='degrees')
@@ -97,7 +103,7 @@ class Ants:
         xstep = 0.2
         degrees = np.arange(xstart,xstop+xstep,xstep)
         r = 4.0*self.fD*np.tan(degrees*math.pi/180.0/2.0)
-        P = ap.feedPattern(degrees,self.feed_fbw,self.dB_at_bw,self.feed_type)
+        P = ap.feedPattern(self.freq,degrees,self.feed_fbw,self.dB_at_bw,self.feed_type)
         g = P*ap.illuminationFactor(r,self.fD)
         PdB = 10.0*np.log10(P)
         gdB = 10.0*np.log10(g)

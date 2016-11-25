@@ -56,22 +56,32 @@ def feedTaper(freq, fD, FBW, dB_at_bw, feed_type):
     T = 10.0*math.log10(T)
     return T
 
+def parseFeedtype(feed_type):
+    if ':' in feed_type:
+        feed_split = feed_type.split(':')
+        feed_data = feed_split[1].split(',')
+        feed_freq = float(feed_data[0])
+        feed_taper = float(feed_data[1])
+        feed_exponent = float(feed_data[2])
+        feed_type = feed_split[0].lower()
+    else:
+        return feed_type, 1.0, None, 0.0
+
+    return feed_type, feed_freq, feed_taper, feed_exponent
 def feedPattern(freq, angle, FBW, dB_at_bw, feed_type):
-    if feed_type is None:
+    feed_type, feed_freq, feed_taper, feed_exponent = parseFeedtype(feed_type)
+    if dB_at_bw is None and feed_taper:
+        dB_at_bw = feed_taper
+    if feed_type is None or dB_at_bw is None:
         print 'No feed_type specified'
         return
-    if ':' in feed_type:
-        feed_freq = float(feed_type.split(':')[1])
-        feed_exponent = float(feed_freq.split(',')[1])
-        feed_freq = float(feed_freq.split(',')[0])
-        feed_type = feed_type.split(':')[0]
-        print 'Not implemented'
     if type(angle) is not np.array:
         angle = np.array(angle,dtype=float)
     P = None
     if feed_type.lower() == 'gaussian':  # beam is full width, level is where that beam is in dB (e.g. 3)
         A = 4.0*dB_at_bw/(10.*math.log10(math.e))
-        P = np.exp(-A*(angle/FBW)**2)
+        freq_scale = np.power(freq/feed_freq,feed_exponent)
+        P = np.exp(-A*np.power(angle/FBW,2.0)*freq_scale)
     elif feed_type.lower()[0:4] == 'file':
         fname = feed_type.split(':')[1]
         #print 'Opening feed file:  '+fname+' (assuming csv with header line)'
